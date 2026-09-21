@@ -1,0 +1,169 @@
+{
+ "conta": "3194533452",
+ "nome": "Cosmetica Farmácia de Manipulação",
+ "moeda": "BRL",
+ "semanas": [
+  {
+   "semana": "2026-05-25",
+   "custo": 2707.76,
+   "conversoes": 153.0,
+   "cpa": 17.7,
+   "cpc": 7.61,
+   "cliques": 356,
+   "impressoes": 3930
+  },
+  {
+   "semana": "2026-06-01",
+   "custo": 3140.19,
+   "conversoes": 184.0,
+   "cpa": 17.07,
+   "cpc": 5.98,
+   "cliques": 525,
+   "impressoes": 6908
+  },
+  {
+   "semana": "2026-06-08",
+   "custo": 4102.54,
+   "conversoes": 342.0,
+   "cpa": 12.0,
+   "cpc": 2.6,
+   "cliques": 1579,
+   "impressoes": 21396
+  },
+  {
+   "semana": "2026-06-15",
+   "custo": 3449.06,
+   "conversoes": 352.0,
+   "cpa": 9.8,
+   "cpc": 1.8,
+   "cliques": 1917,
+   "impressoes": 23817
+  },
+  {
+   "semana": "2026-06-22",
+   "custo": 2845.91,
+   "conversoes": 109.0,
+   "cpa": 26.11,
+   "cpc": 4.56,
+   "cliques": 624,
+   "impressoes": 6151
+  },
+  {
+   "semana": "2026-06-29",
+   "custo": 2578.72,
+   "conversoes": 101.0,
+   "cpa": 25.53,
+   "cpc": 5.16,
+   "cliques": 500,
+   "impressoes": 5180
+  },
+  {
+   "semana": "2026-07-06",
+   "custo": 1322.25,
+   "conversoes": 70.0,
+   "cpa": 18.89,
+   "cpc": 3.61,
+   "cliques": 366,
+   "impressoes": 4329
+  },
+  {
+   "semana": "2026-07-13",
+   "custo": 2162.77,
+   "conversoes": 146.5,
+   "cpa": 14.76,
+   "cpc": 4.4,
+   "cliques": 491,
+   "impressoes": 5682
+  },
+  {
+   "semana": "2026-07-20",
+   "custo": 2429.25,
+   "conversoes": 155.0,
+   "cpa": 15.67,
+   "cpc": 4.75,
+   "cliques": 511,
+   "impressoes": 6641
+  },
+  {
+   "semana": "2026-07-27",
+   "custo": 2274.0,
+   "conversoes": 129.0,
+   "cpa": 17.63,
+   "cpc": 4.44,
+   "cliques": 512,
+   "impressoes": 7722
+  },
+  {
+   "semana": "2026-08-03",
+   "custo": 2761.85,
+   "conversoes": 136.0,
+   "cpa": 20.31,
+   "cpc": 4.41,
+   "cliques": 626,
+   "impressoes": 9480
+  },
+  {
+   "semana": "2026-08-10",
+   "custo": 2753.33,
+   "conversoes": 137.0,
+   "cpa": 20.1,
+   "cpc": 4.54,
+   "cliques": 606,
+   "impressoes": 9273
+  },
+  {
+   "semana": "2026-08-17",
+   "custo": 3116.35,
+   "conversoes": 156.0,
+   "cpa": 19.98,
+   "cpc": 4.87,
+   "cliques": 640,
+   "impressoes": 8271
+  },
+  {
+   "semana": "2026-08-24",
+   "custo": 3657.82,
+   "conversoes": 186.0,
+   "cpa": 19.67,
+   "cpc": 4.72,
+   "cliques": 775,
+   "impressoes": 10245
+  },
+  {
+   "semana": "2026-08-31",
+   "custo": 3973.44,
+   "conversoes": 181.0,
+   "cpa": 21.95,
+   "cpc": 4.99,
+   "cliques": 797,
+   "impressoes": 10206
+  },
+  {
+   "semana": "2026-09-07",
+   "custo": 2632.79,
+   "conversoes": 109.0,
+   "cpa": 24.15,
+   "cpc": 5.18,
+   "cliques": 508,
+   "impressoes": 7805
+  },
+  {
+   "semana": "2026-09-14",
+   "custo": 3468.59,
+   "conversoes": 163.0,
+   "cpa": 21.28,
+   "cpc": 4.74,
+   "cliques": 731,
+   "impressoes": 10705
+  },
+  {
+   "semana": "2026-09-21",
+   "custo": 385.37,
+   "conversoes": 3.0,
+   "cpa": 128.46,
+   "cpc": 5.84,
+   "cliques": 66,
+   "impressoes": 839
+  }
+ ]
+}

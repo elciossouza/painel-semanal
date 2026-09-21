@@ -122,6 +122,17 @@
       <div class="card"><div id="g-conv"></div></div>
     </div>
 
+    <h2>Google Ads — direto da conta</h2>
+    <p class="nota" id="nota-ads">Números lidos da API do Google Ads, não digitados. Semana em
+      andamento fica de fora, porque ela ainda não fechou e puxaria as médias para baixo.</p>
+    <div class="grid">
+      <div class="card"><div id="g-ads-custo"></div></div>
+      <div class="card"><div id="g-ads-cpa"></div></div>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div class="card full"><div id="g-ads-diverg"></div></div>
+    </div>
+
     <h2>Os dados</h2>
     <p class="nota">As semanas do período selecionado, como estão na planilha.</p>
     <div class="tabela" id="tabela"></div>
@@ -212,7 +223,13 @@ function empilhado(div,xs,series,titulo){
     hovertemplate:"%{fullData.name}: %{y:,.0f}<extra></extra>"})), l, CFG);
 }
 
-let DADOS=[], CAB=[], JANELA=null;
+let DADOS=[], CAB=[], JANELA=null, ADS=null, ADS_NOME="";
+
+// A semana do Ads e identificada pela segunda-feira (segments.week). A planilha
+// comeca na mesma segunda, entao a chave e a data ISO do inicio.
+function chaveSemana(d){
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
 
 function recorte(){
   if(!JANELA || JANELA>=DADOS.length) return {atual:DADOS.slice(), anterior:[]};
@@ -304,6 +321,47 @@ function desenhar(){
   ],"Clientes ativos na semana");
   linha("g-conv",xs,atual.map(o=>o["Conversões Total"]),"Conversões do Google",ACCENT);
 
+  // ── Google Ads ──
+  if(ADS){
+    const hoje=new Date();
+    const semanas=atual.map(o=>chaveSemana(o.__inicio))
+      .map(k=>({k, w:ADS[k]}))
+      .filter(x=>x.w)
+      // semana em andamento: inicio + 7 dias ainda no futuro
+      .filter(x=>{ const d=new Date(x.k+"T00:00:00"); return (d.getTime()+7*864e5) <= hoje.getTime(); });
+    if(semanas.length){
+      const xa=semanas.map(x=>new Date(x.k+"T00:00:00"));
+      linha("g-ads-custo", xa, semanas.map(x=>x.w.custo), "Investimento (API do Google Ads)", ACCENT, "R$ ");
+      const lcpa=layout("Custo por conversão","R$ ");
+      Plotly.newPlot("g-ads-cpa",[{
+        x:xa, y:semanas.map(x=>x.w.cpa), type:"scatter", mode:"lines+markers",
+        line:{color:ORANGE,width:2.2,shape:"spline",smoothing:0.4},
+        marker:{size:7,color:ORANGE,line:{color:"#0d1424",width:1.5}},
+        customdata:semanas.map(x=>[x.w.conversoes,x.w.cliques]),
+        hovertemplate:"CPA: R$ %{y:,.2f}<br>conversões: %{customdata[0]:,.0f}<br>cliques: %{customdata[1]:,.0f}<extra></extra>"
+      }], lcpa, CFG);
+
+      // divergencia entre o que esta digitado na planilha e o que a conta diz
+      const ld=layout("Planilha × API — investimento e conversões","","%");
+      ld.height=320; ld.hovermode="x unified";
+      ld.shapes=[{type:"line",xref:"paper",x0:0,x1:1,y0:0,y1:0,line:{color:TEXT2,width:1,dash:"dot"}}];
+      const mapa={}; atual.forEach(o=>{ mapa[chaveSemana(o.__inicio)]=o; });
+      const dCusto=semanas.map(x=>{ const o=mapa[x.k]; const v=o&&o["Marketing Google R$"];
+        return (v&&x.w.custo)? ((v-x.w.custo)/x.w.custo)*100 : null; });
+      const dConv=semanas.map(x=>{ const o=mapa[x.k]; const v=o&&o["Conversões Total"];
+        return (v&&x.w.conversoes)? ((v-x.w.conversoes)/x.w.conversoes)*100 : null; });
+      Plotly.newPlot("g-ads-diverg",[
+        {x:xa,y:dCusto,name:"Investimento",type:"bar",marker:{color:BLUE,line:{color:"#0d1424",width:1.5}},
+         hovertemplate:"investimento: %{y:+,.1f}%<extra></extra>"},
+        {x:xa,y:dConv,name:"Conversões",type:"bar",marker:{color:PURPLE,line:{color:"#0d1424",width:1.5}},
+         hovertemplate:"conversões: %{y:+,.1f}%<extra></extra>"}
+      ], ld, CFG);
+      document.getElementById("nota-ads").textContent =
+        `Números lidos da API da conta ${ADS_NOME}, não digitados. ${semanas.length} semanas fechadas no período. `+
+        `O último gráfico mostra o quanto a planilha se afasta da conta: zero é igual, positivo é planilha maior.`;
+    }
+  }
+
   const cols=CAB.filter(c=>c&&c!=="Semana");
   document.getElementById("tabela").innerHTML=
     `<table><thead><tr><th>Semana</th>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>`+
@@ -332,6 +390,18 @@ function desenhar(){
       o.__inicio=inicioSemana(o["Semana"]); return o;
     }).filter(o=>o.__inicio).sort((a,b)=>a.__inicio-b.__inicio);
     if(!DADOS.length) throw new Error("nenhuma linha com semana reconhecida.");
+
+    // Numeros do Google Ads, gerados por scripts/atualizar_ads.py e versionados.
+    // A pagina e estatica: nao da para chamar a API daqui, porque exigiria o
+    // refresh token e o developer token num repositorio publico.
+    try{
+      const ra=await fetch(`ads.json?_=${Date.now()}`);
+      if(ra.ok){
+        const ja=await ra.json();
+        ADS={}; (ja.semanas||[]).forEach(w=>{ ADS[w.semana]=w; });
+        ADS_NOME=ja.nome||"";
+      }
+    }catch(e){ ADS=null; }
     DADOS.forEach(o=>{ o.__aprov = o["Pedidos Orçados"] ? (o["Pedidos Aprovados"]||0)/o["Pedidos Orçados"] : null; });
 
     const opcoes=[{r:"4 semanas",v:4},{r:"8 semanas",v:8},{r:"12 semanas",v:12},{r:"Tudo",v:null}]
