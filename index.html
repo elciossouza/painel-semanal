@@ -30,12 +30,21 @@
   header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px}
   h1{font-size:22px;margin:0;letter-spacing:-.02em;font-weight:650}
   .sub{color:var(--text2);font-size:12.5px;margin-top:3px}
-  .filtros{display:flex;gap:6px;flex-wrap:wrap}
-  .chip{background:var(--bg2);border:1px solid var(--border);color:var(--text2);
-        padding:7px 13px;border-radius:var(--radius);font-size:12.5px;font-weight:550;
-        cursor:pointer;transition:all .15s;font-family:inherit}
-  .chip:hover{border-color:var(--border2);color:var(--text)}
-  .chip.on{background:var(--blue-dim);border-color:var(--blue);color:#c7d2fe}
+  .filtros{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .filtros select,.filtros input[type=date]{
+    background:var(--bg2);border:1px solid var(--border);color:var(--text);
+    padding:7px 11px;border-radius:var(--radius);font-size:12.5px;font-weight:500;
+    font-family:inherit;cursor:pointer;transition:border-color .15s;
+    appearance:none;-webkit-appearance:none}
+  .filtros select{padding-right:30px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2.5 4.5L6 8l3.5-3.5' stroke='%237a7a8e' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 10px center}
+  .filtros select:hover,.filtros input[type=date]:hover{border-color:var(--border2)}
+  .filtros select:focus,.filtros input[type=date]:focus{outline:none;border-color:var(--blue)}
+  .filtros input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.55)}
+  #custom-wrap{display:none;gap:6px;align-items:center}
+  #custom-wrap.on{display:flex}
+  #custom-wrap span{color:var(--text2);font-size:12px}
 
   .comparando{color:var(--text3);font-size:11.5px;margin:-8px 0 16px}
 
@@ -83,7 +92,14 @@
       <h1>Marketing e Vendas</h1>
       <div class="sub" id="periodo">carregando…</div>
     </div>
-    <div class="filtros" id="filtros"></div>
+    <div class="filtros">
+      <select id="periodo-sel" aria-label="Período"></select>
+      <div id="custom-wrap">
+        <input type="date" id="data-ini" aria-label="Data inicial" />
+        <span>até</span>
+        <input type="date" id="data-fim" aria-label="Data final" />
+      </div>
+    </div>
   </header>
   <div class="comparando" id="comparando"></div>
 
@@ -109,10 +125,15 @@
     </div>
 
     <h2>O funil de pedidos</h2>
-    <p class="nota">Orçado que não vira aprovado é a maior perda visível nesta planilha.</p>
+    <p class="nota">Orçado que não vira aprovado é a maior perda visível nesta planilha.
+      Cancelado é só ~1% do total, então ganha um gráfico próprio logo abaixo — na barra
+      empilhada ele desaparece.</p>
     <div class="grid">
       <div class="card"><div id="g-aprov"></div></div>
       <div class="card"><div id="g-destino"></div></div>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div class="card full"><div id="g-cancel"></div></div>
     </div>
 
     <h2>Clientes e mídia</h2>
@@ -120,6 +141,14 @@
     <div class="grid">
       <div class="card"><div id="g-clientes"></div></div>
       <div class="card"><div id="g-conv"></div></div>
+    </div>
+
+    <h2>Ticket médio</h2>
+    <p class="nota">O valor médio por pedido e o que o compõe: vendas de manipulação
+      e de varejo. Ticket que cai com volume estável costuma ser mudança de mix, não de demanda.</p>
+    <div class="grid">
+      <div class="card"><div id="g-ticket"></div></div>
+      <div class="card"><div id="g-mix"></div></div>
     </div>
 
     <h2>Google Ads — direto da conta</h2>
@@ -223,7 +252,54 @@ function empilhado(div,xs,series,titulo){
     hovertemplate:"%{fullData.name}: %{y:,.0f}<extra></extra>"})), l, CFG);
 }
 
-let DADOS=[], CAB=[], JANELA=null, ADS=null, ADS_NOME="";
+let DADOS=[], CAB=[], PERIODO="30d", ADS=null, ADS_NOME="";
+
+// Filtro de data padrao do Nodus (static/js/date-filter.js). Mesmas opcoes, na
+// mesma ordem, e o mesmo calculo. Modo 'closed': "Ultimos N dias" TERMINA
+// ONTEM, como Google Ads e Meta Ads -- o dia corrente ainda esta parcial.
+const TZ="America/Sao_Paulo";
+const OPCOES=[
+  {value:"all",        label:"Todo período"},
+  {value:"today",      label:"Hoje"},
+  {value:"yesterday",  label:"Ontem"},
+  {value:"7d",         label:"Últimos 7 dias"},
+  {value:"30d",        label:"Últimos 30 dias"},
+  {value:"month",      label:"Mês atual"},
+  {value:"last_month", label:"Mês anterior"},
+  {value:"custom",     label:"Personalizado"}
+];
+// 'en-CA' da YYYY-MM-DD; o timeZone evita o off-by-one da madrugada, quando o
+// navegador em UTC ja virou o dia e no Brasil ainda e o dia anterior.
+const hojeStr = ()=> new Date().toLocaleDateString("en-CA",{timeZone:TZ});
+const parseStr = s => { const p=String(s).split("-");
+  return new Date(Number(p[0]),Number(p[1])-1,Number(p[2])); };
+const fmtStr = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const shift = (str,dias)=>{ const d=parseStr(str); d.setDate(d.getDate()+dias); return fmtStr(d); };
+
+function intervalo(period){
+  const hoje=hojeStr(), ontem=shift(hoje,-1);
+  const out={start:null,end:null,period:period,incomplete:false};
+  if(period==="today"){ out.start=hoje; out.end=hoje; }
+  else if(period==="yesterday"){ out.start=ontem; out.end=ontem; }
+  else if(period==="7d"||period==="30d"){
+    const n = period==="7d"?7:30;
+    out.end=ontem;                       // modo 'closed', igual relatorio de midia
+    out.start=shift(out.end,-(n-1));
+  }
+  else if(period==="month"){ out.start=hoje.slice(0,8)+"01"; out.end=hoje; }
+  else if(period==="last_month"){
+    const primeiro=parseStr(hoje.slice(0,8)+"01");
+    const fim=new Date(primeiro); fim.setDate(fim.getDate()-1);
+    out.start=fmtStr(fim).slice(0,8)+"01"; out.end=fmtStr(fim);
+  }
+  else if(period==="custom"){
+    out.start=document.getElementById("data-ini").value||"";
+    out.end  =document.getElementById("data-fim").value||"";
+    if(!out.start||!out.end){ out.start=null; out.end=null; out.incomplete=true; }
+  }
+  return out;                            // 'all' fica sem recorte
+}
+const labelBR = s => s? s.split("-").reverse().join("/") : "";
 
 // A semana do Ads e identificada pela segunda-feira (segments.week). A planilha
 // comeca na mesma segunda, entao a chave e a data ISO do inicio.
@@ -231,9 +307,21 @@ function chaveSemana(d){
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 }
 
+// A planilha e SEMANAL: uma semana entra quando faz interseccao com o intervalo
+// escolhido. Recortar por "semana inteira dentro do periodo" faria "Ultimos 7
+// dias" quase sempre vir vazio, ja que a semana comeca na segunda.
 function recorte(){
-  if(!JANELA || JANELA>=DADOS.length) return {atual:DADOS.slice(), anterior:[]};
-  return {atual:DADOS.slice(-JANELA), anterior:DADOS.slice(Math.max(0,DADOS.length-2*JANELA), DADOS.length-JANELA)};
+  const r=intervalo(PERIODO);
+  if(r.incomplete) return {atual:[],anterior:[],incompleto:true,r:r};
+  if(!r.start||!r.end) return {atual:DADOS.slice(),anterior:[],r:r};
+  const ini=parseStr(r.start).getTime(), fim=parseStr(r.end).getTime();
+  const dentro=(o,a,b)=>{ const s=o.__inicio.getTime(), e=s+6*864e5; return s<=b && e>=a; };
+  const atual=DADOS.filter(o=>dentro(o,ini,fim));
+  // janela anterior do mesmo tamanho, imediatamente antes
+  const dur=fim-ini+864e5;
+  const aFim=ini-864e5, aIni=aFim-dur+864e5;
+  const anterior=DADOS.filter(o=>dentro(o,aIni,aFim));
+  return {atual:atual,anterior:anterior,r:r};
 }
 function badge(atual, ant, inverter){
   if(ant===null||ant===undefined||!ant||isNaN(ant)||atual===null) return '<span class="delta flat">sem base</span>';
@@ -244,7 +332,23 @@ function badge(atual, ant, inverter){
 }
 
 function desenhar(){
-  const {atual,anterior}=recorte();
+  const rec=recorte();
+  const {atual,anterior}=rec;
+  const painel=document.getElementById("painel"), estado=document.getElementById("estado");
+  if(rec.incompleto){
+    painel.hidden=true; estado.hidden=false;
+    estado.textContent="Escolha as duas datas do período personalizado.";
+    document.getElementById("periodo").textContent="período personalizado incompleto";
+    document.getElementById("comparando").textContent=""; return;
+  }
+  if(!atual.length){
+    painel.hidden=true; estado.hidden=false;
+    estado.textContent="Nenhuma semana da planilha cai neste período.";
+    document.getElementById("periodo").textContent =
+      rec.r&&rec.r.start ? `${labelBR(rec.r.start)} a ${labelBR(rec.r.end)} — sem dados` : "sem dados";
+    document.getElementById("comparando").textContent=""; return;
+  }
+  estado.hidden=true; painel.hidden=false;
   const xs=atual.map(o=>o.__inicio);
   const temBase=anterior.length>0;
 
@@ -321,6 +425,61 @@ function desenhar(){
   ],"Clientes ativos na semana");
   linha("g-conv",xs,atual.map(o=>o["Conversões Total"]),"Conversões do Google",ACCENT);
 
+  // Cancelados em grafico proprio: na barra empilhada eles somam ~1% do total
+  // e viram uma linha de 1 pixel. Aqui a escala e so deles, entao da para ver
+  // a semana que destoa.
+  {
+    const canc=atual.map(o=>o["Pedidos Cancelados"]);
+    const orc =atual.map(o=>o["Pedidos Orçados"]);
+    const pct =canc.map((v,i)=> (v!==null&&orc[i])? (v/orc[i])*100 : null);
+    const lc=layout("Pedidos cancelados por semana");
+    lc.height=300; lc.bargap=0.45;
+    lc.yaxis2={overlaying:"y",side:"right",showgrid:false,ticksuffix:"%",
+               tickfont:{color:TEXT2},zeroline:false,rangemode:"tozero"};
+    Plotly.newPlot("g-cancel",[
+      {x:xs,y:canc,name:"Cancelados",type:"bar",
+       marker:{color:RED,line:{color:"#0d1424",width:1.5}},
+       hovertemplate:"%{y:,.0f} cancelados<extra></extra>"},
+      {x:xs,y:pct,name:"% dos orçados",type:"scatter",mode:"lines+markers",yaxis:"y2",
+       line:{color:ORANGE,width:2,shape:"spline",smoothing:0.4},
+       marker:{size:6,color:ORANGE},
+       hovertemplate:"%{y:,.2f}% dos orçados<extra></extra>"}
+    ], lc, CFG);
+  }
+
+  // ── Ticket medio ──
+  {
+    const tk=atual.map(o=>o["Valor Medio P/Pedido R$"]);
+    const med=media(atual,"Valor Medio P/Pedido R$");
+    const lt=layout("Ticket médio por semana","R$ ");
+    if(med!==null){
+      lt.shapes=[{type:"line",xref:"paper",x0:0,x1:1,y0:med,y1:med,
+                  line:{color:TEXT2,width:1,dash:"dot"}}];
+      lt.annotations=[{xref:"paper",x:1,xanchor:"right",y:med,yanchor:"bottom",
+        text:`média do período R$ ${nf(med,2)}`,showarrow:false,
+        font:{color:TEXT2,size:10.5}}];
+    }
+    Plotly.newPlot("g-ticket",[{
+      x:xs,y:tk,type:"scatter",mode:"lines+markers",
+      line:{color:GREEN,width:2.2,shape:"spline",smoothing:0.4},
+      marker:{size:7,color:GREEN,line:{color:"#0d1424",width:1.5}},
+      fill:"tozeroy", fillcolor:"rgba(16,185,129,0.07)",
+      hovertemplate:"R$ %{y:,.2f}<extra></extra>"}], lt, CFG);
+
+    // composicao: de onde vem o faturamento da semana
+    const temMix = atual.some(o=>o["Manipulação Vendas R$"]!==null&&o["Manipulação Vendas R$"]!==undefined);
+    if(temMix){
+      empilhado("g-mix", xs, [
+        {nome:"Manipulação", y:atual.map(o=>o["Manipulação Vendas R$"]), cor:BLUE},
+        {nome:"Varejo",      y:atual.map(o=>o["Varejo Vendas R$"]),      cor:ACCENT}
+      ], "Composição das vendas");
+    } else {
+      Plotly.purge("g-mix");
+      document.getElementById("g-mix").innerHTML=
+        '<div style="padding:28px;color:#50505e;font-size:12.5px">Sem separação de manipulação e varejo no período.</div>';
+    }
+  }
+
   // ── Google Ads ──
   if(ADS){
     const hoje=new Date();
@@ -371,7 +530,8 @@ function desenhar(){
 
   const ini=(atual[0]["Semana"].split("à")[0]||"").trim();
   const fim=(atual[atual.length-1]["Semana"].split("à").pop()||"").trim();
-  document.getElementById("periodo").textContent=`${atual.length} semanas, de ${ini} a ${fim}`;
+  const sem = atual.length===1 ? "1 semana" : `${atual.length} semanas`;
+  document.getElementById("periodo").textContent=`${sem}, de ${ini} a ${fim}`;
 }
 
 (async function(){
@@ -404,17 +564,21 @@ function desenhar(){
     }catch(e){ ADS=null; }
     DADOS.forEach(o=>{ o.__aprov = o["Pedidos Orçados"] ? (o["Pedidos Aprovados"]||0)/o["Pedidos Orçados"] : null; });
 
-    const opcoes=[{r:"4 semanas",v:4},{r:"8 semanas",v:8},{r:"12 semanas",v:12},{r:"Tudo",v:null}]
-      .filter(o=>o.v===null||o.v*2<=DADOS.length||o.v<=DADOS.length);
-    JANELA = (opcoes.find(o=>o.v===8)||opcoes[0]).v;
-    document.getElementById("filtros").innerHTML=opcoes.map(o=>
-      `<button class="chip${o.v===JANELA?" on":""}" data-v="${o.v===null?"":o.v}">${o.r}</button>`).join("");
-    document.getElementById("filtros").addEventListener("click",ev=>{
-      const b=ev.target.closest(".chip"); if(!b) return;
-      JANELA = b.dataset.v==="" ? null : parseInt(b.dataset.v,10);
-      document.querySelectorAll("#filtros .chip").forEach(x=>x.classList.toggle("on",x===b));
+    const sel=document.getElementById("periodo-sel");
+    sel.innerHTML=OPCOES.map(o=>`<option value="${o.value}">${o.label}</option>`).join("");
+    sel.value=PERIODO;
+    const wrap=document.getElementById("custom-wrap");
+    // Personalizado ja abre com o intervalo inteiro da planilha, para o usuario
+    // ajustar em vez de digitar do zero.
+    document.getElementById("data-ini").value=fmtStr(DADOS[0].__inicio);
+    document.getElementById("data-fim").value=fmtStr(new Date(DADOS[DADOS.length-1].__inicio.getTime()+6*864e5));
+    sel.addEventListener("change",()=>{
+      PERIODO=sel.value;
+      wrap.classList.toggle("on", PERIODO==="custom");
       desenhar();
     });
+    document.getElementById("data-ini").addEventListener("change",desenhar);
+    document.getElementById("data-fim").addEventListener("change",desenhar);
 
     estado.hidden=true;
     document.getElementById("painel").hidden=false;
