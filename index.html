@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Marketing e Vendas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/3.0.1/plotly.min.js"></script>
+<style>
+  /* Tokens da Central de Análise do Nodus */
+  :root{
+    --bg:#080F1A; --bg2:#12162A; --bg3:#1A1F36;
+    --border:#232944; --border2:#2A3052;
+    --text:#f0f0f5; --text2:#7a7a8e; --text3:#50505e;
+    --green:#10b981; --green-dim:#10b98112;
+    --yellow:#f59e0b; --blue:#6366f1; --blue-dim:#6366f112;
+    --red:#ef4444; --red-dim:#ef444410;
+    --purple:#a855f7; --orange:#f97316;
+    --accent:#7dd3fc; --accent-strong:#a78bfa;
+    --card:linear-gradient(180deg, rgba(22,27,46,0.85), rgba(18,22,42,0.7));
+    --glass-border:rgba(255,255,255,0.06);
+    --shadow-md:0 4px 16px rgba(0,0,0,0.4);
+    --radius:10px; --radius-lg:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:14px/1.55 'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1240px;margin:0 auto;padding-block:26px;padding-left:18px;padding-right:18px}
+
+  header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+  h1{font-size:22px;margin:0;letter-spacing:-.02em;font-weight:650}
+  .sub{color:var(--text2);font-size:12.5px;margin-top:3px}
+  .filtros{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{background:var(--bg2);border:1px solid var(--border);color:var(--text2);
+        padding:7px 13px;border-radius:var(--radius);font-size:12.5px;font-weight:550;
+        cursor:pointer;transition:all .15s;font-family:inherit}
+  .chip:hover{border-color:var(--border2);color:var(--text)}
+  .chip.on{background:var(--blue-dim);border-color:var(--blue);color:#c7d2fe}
+
+  .comparando{color:var(--text3);font-size:11.5px;margin:-8px 0 16px}
+
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:22px}
+  .kpi{background:var(--card);border:1px solid var(--glass-border);border-radius:var(--radius-lg);
+       padding:13px 15px;box-shadow:var(--shadow-md)}
+  .kpi .rot{color:var(--text2);font-size:11px;font-weight:550;letter-spacing:.02em;
+            text-transform:uppercase;margin-bottom:6px}
+  .kpi .val{font-size:21px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
+  .delta{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;font-weight:600;
+         margin-top:6px;padding:2px 7px;border-radius:20px}
+  .delta.up{background:var(--green-dim);color:var(--green)}
+  .delta.down{background:var(--red-dim);color:var(--red)}
+  .delta.flat{background:rgba(255,255,255,.04);color:var(--text2)}
+
+  h2{font-size:15.5px;margin:26px 0 2px;font-weight:600;letter-spacing:-.01em}
+  .nota{color:var(--text2);font-size:12.5px;margin:0 0 12px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .card{background:var(--card);border:1px solid var(--glass-border);
+        border-radius:var(--radius-lg);padding:4px;box-shadow:var(--shadow-md)}
+  .card.full{grid-column:1/-1}
+
+  .tabela{overflow:auto;max-height:420px;background:var(--card);
+          border:1px solid var(--glass-border);border-radius:var(--radius-lg)}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;white-space:nowrap}
+  th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--border)}
+  th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:#12162A}
+  th{font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;
+     letter-spacing:.03em;background:#12162A;position:sticky;top:0;z-index:2}
+  th:first-child{z-index:3}
+  tbody tr:hover td{background:rgba(255,255,255,.02)}
+  tbody tr:last-child td{border-bottom:0}
+
+  .rodape{color:var(--text3);font-size:11.5px;margin-top:20px;display:flex;
+          justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .estado{padding:60px 0;color:var(--text2);text-align:center}
+  .erro{color:var(--red)}
+  @media (max-width:980px){ .kpis{grid-template-columns:repeat(2,1fr)} .grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Marketing e Vendas</h1>
+      <div class="sub" id="periodo">carregando…</div>
+    </div>
+    <div class="filtros" id="filtros"></div>
+  </header>
+  <div class="comparando" id="comparando"></div>
+
+  <div id="estado" class="estado">Lendo a planilha…</div>
+
+  <div id="painel" hidden>
+    <div class="kpis" id="kpis"></div>
+
+    <h2>Crescimento ao longo do tempo</h2>
+    <p class="nota">Todas as métricas partem de 100 na primeira semana do período, para
+      poderem ser comparadas entre si apesar das escalas diferentes. Clique na legenda para isolar uma.</p>
+    <div class="card full"><div id="g-cresc"></div></div>
+
+    <h2>Comparativo entre períodos</h2>
+    <p class="nota" id="nota-comp"></p>
+    <div class="card full"><div id="g-comp"></div></div>
+
+    <h2>Vendas e investimento</h2>
+    <p class="nota">O que entrou e o que foi gasto para trazer, semana a semana.</p>
+    <div class="grid">
+      <div class="card"><div id="g-vendas"></div></div>
+      <div class="card"><div id="g-invest"></div></div>
+    </div>
+
+    <h2>O funil de pedidos</h2>
+    <p class="nota">Orçado que não vira aprovado é a maior perda visível nesta planilha.</p>
+    <div class="grid">
+      <div class="card"><div id="g-aprov"></div></div>
+      <div class="card"><div id="g-destino"></div></div>
+    </div>
+
+    <h2>Clientes e mídia</h2>
+    <p class="nota">Base ativa na semana e o retorno das campanhas do Google.</p>
+    <div class="grid">
+      <div class="card"><div id="g-clientes"></div></div>
+      <div class="card"><div id="g-conv"></div></div>
+    </div>
+
+    <h2>Os dados</h2>
+    <p class="nota">As semanas do período selecionado, como estão na planilha.</p>
+    <div class="tabela" id="tabela"></div>
+
+    <div class="rodape">
+      <span id="atualizado"></span>
+      <span>Os números vêm da planilha; a página apenas os lê.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const PLANILHA="17AoD68HRCO3vZKxW5DklVxVPRc8ZWUqt9-1NSL5mu3s", GID="0";
+const BLUE="#6366f1", PURPLE="#a855f7", GREEN="#10b981", ORANGE="#f97316",
+      ACCENT="#7dd3fc", RED="#ef4444", TEXT="#f0f0f5", TEXT2="#7a7a8e", BORDER="#232944";
+
+// Metricas de crescimento pedidas, na ordem em que aparecem na legenda
+const CRESC=[
+  {col:"Valor Total Vendas R$", nome:"Vendas",            cor:BLUE,   moeda:true},
+  {col:"Pedidos Aprovados",     nome:"Pedidos aprovados", cor:GREEN},
+  {col:"Pedidos Orçados",       nome:"Pedidos orçados",   cor:ORANGE},
+  {col:"Clientes Novos",        nome:"Clientes novos",    cor:PURPLE},
+  {col:"Conversões Total",      nome:"Conversões",        cor:ACCENT}
+];
+
+// Formato brasileiro: com virgula, ela e o decimal e os pontos sao milhar.
+// Sem virgula, o ponto tambem e milhar. Trocar isso faz 101.330,80 virar 101,33.
+function num(v){
+  if(v===null||v===undefined) return null;
+  let s=String(v).replace(/R\$/g,"").replace(/ /g," ").trim();
+  if(!s||s==="-"||s==="--") return null;
+  s = s.indexOf(",")!==-1 ? s.replace(/\./g,"").replace(",",".") : s.replace(/\./g,"");
+  const n=parseFloat(s); return isNaN(n)?null:n;
+}
+function inicioSemana(v){
+  const m=String(v||"").match(/(\d{2})\/(\d{2})\/(\d{2,4})/);
+  if(!m) return null;
+  let a=parseInt(m[3],10); if(a<100) a+=2000;
+  return new Date(a, parseInt(m[2],10)-1, parseInt(m[1],10));
+}
+function parseCSV(t){
+  const ls=[]; let c="",l=[],dentro=false;
+  for(let i=0;i<t.length;i++){ const ch=t[i];
+    if(dentro){ if(ch==='"'){ if(t[i+1]==='"'){c+='"';i++;} else dentro=false; } else c+=ch; }
+    else if(ch==='"') dentro=true;
+    else if(ch===","){ l.push(c); c=""; }
+    else if(ch==="\n"){ l.push(c); ls.push(l); l=[]; c=""; }
+    else if(ch!=="\r") c+=ch;
+  }
+  if(c.length||l.length){ l.push(c); ls.push(l); }
+  return ls.filter(x=>x.some(y=>String(y).trim()!==""));
+}
+const nf=(n,d)=> (n===null||n===undefined||isNaN(n)) ? "—"
+      : n.toLocaleString("pt-BR",{minimumFractionDigits:d||0,maximumFractionDigits:d||0});
+const brl=n=>"R$ "+nf(n,0), brl2=n=>"R$ "+nf(n,2);
+const soma=(ls,c)=>ls.reduce((a,l)=>a+(l[c]||0),0);
+const media=(ls,c)=>{const v=ls.map(l=>l[c]).filter(x=>x!==null&&x!==undefined&&!isNaN(x));
+                     return v.length? v.reduce((a,b)=>a+b,0)/v.length : null;};
+
+function layout(titulo,pref,suf,extra){
+  return Object.assign({
+    title:{text:titulo,font:{size:14,color:TEXT},x:0,xanchor:"left"},
+    plot_bgcolor:"rgba(0,0,0,0)", paper_bgcolor:"rgba(0,0,0,0)",
+    margin:{l:62,r:16,t:42,b:44}, height:300,
+    font:{color:TEXT2,size:11.5,family:"Inter,system-ui,sans-serif"},
+    hovermode:"x unified",
+    hoverlabel:{bgcolor:"#12162A",bordercolor:BORDER,font:{color:TEXT,size:12}},
+    legend:{orientation:"h",y:-0.22,x:0,font:{color:TEXT2,size:11}},
+    xaxis:{showgrid:false,linecolor:BORDER,tickfont:{color:TEXT2},tickformat:"%d/%m"},
+    yaxis:{gridcolor:BORDER,zeroline:false,linecolor:"rgba(0,0,0,0)",
+           tickprefix:pref||"",ticksuffix:suf||"",tickfont:{color:TEXT2}}
+  }, extra||{});
+}
+const CFG={displayModeBar:false,responsive:true};
+
+function linha(div,xs,ys,titulo,cor,pref,suf){
+  Plotly.newPlot(div,[{x:xs,y:ys,type:"scatter",mode:"lines+markers",
+    line:{color:cor,width:2.2,shape:"spline",smoothing:0.4},
+    marker:{size:7,color:cor,line:{color:"#0d1424",width:1.5}},
+    fill:"tozeroy", fillcolor:cor.replace(")",",0.08)").replace("rgb","rgba").startsWith("rgba")?cor:cor+"14",
+    hovertemplate:(pref||"")+"%{y:,.2f}"+(suf||"")+"<extra></extra>"}],
+    layout(titulo,pref,suf),CFG);
+}
+function empilhado(div,xs,series,titulo){
+  const l=layout(titulo); l.barmode="stack"; l.bargap=0.4;
+  Plotly.newPlot(div, series.map(s=>({x:xs,y:s.y,name:s.nome,type:"bar",
+    marker:{color:s.cor,line:{color:"#0d1424",width:1.5}},
+    hovertemplate:"%{fullData.name}: %{y:,.0f}<extra></extra>"})), l, CFG);
+}
+
+let DADOS=[], CAB=[], JANELA=null;
+
+function recorte(){
+  if(!JANELA || JANELA>=DADOS.length) return {atual:DADOS.slice(), anterior:[]};
+  return {atual:DADOS.slice(-JANELA), anterior:DADOS.slice(Math.max(0,DADOS.length-2*JANELA), DADOS.length-JANELA)};
+}
+function badge(atual, ant, inverter){
+  if(ant===null||ant===undefined||!ant||isNaN(ant)||atual===null) return '<span class="delta flat">sem base</span>';
+  const p=((atual-ant)/Math.abs(ant))*100;
+  if(Math.abs(p)<0.5) return '<span class="delta flat">estável</span>';
+  const bom = inverter ? p<0 : p>0;
+  return `<span class="delta ${bom?"up":"down"}">${p>0?"▲":"▼"} ${Math.abs(p).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</span>`;
+}
+
+function desenhar(){
+  const {atual,anterior}=recorte();
+  const xs=atual.map(o=>o.__inicio);
+  const temBase=anterior.length>0;
+
+  document.getElementById("comparando").textContent = temBase
+    ? `Comparando as ${atual.length} semanas selecionadas com as ${anterior.length} imediatamente anteriores.`
+    : "Período inteiro — não há janela anterior para comparar.";
+
+  const kpis=[
+    ["Vendas no período", brl(soma(atual,"Valor Total Vendas R$")), soma(atual,"Valor Total Vendas R$"), temBase?soma(anterior,"Valor Total Vendas R$"):null, false],
+    ["Investimento Google", brl(soma(atual,"Marketing Google R$")), soma(atual,"Marketing Google R$"), temBase?soma(anterior,"Marketing Google R$"):null, false],
+    ["Retorno por real", (soma(atual,"Marketing Google R$")? (soma(atual,"Valor Total Vendas R$")/soma(atual,"Marketing Google R$")).toLocaleString("pt-BR",{maximumFractionDigits:1})+"×" : "—"),
+        (soma(atual,"Marketing Google R$")? soma(atual,"Valor Total Vendas R$")/soma(atual,"Marketing Google R$") : null),
+        temBase&&soma(anterior,"Marketing Google R$")? soma(anterior,"Valor Total Vendas R$")/soma(anterior,"Marketing Google R$") : null, false],
+    ["Ticket médio", brl2(media(atual,"Valor Medio P/Pedido R$")), media(atual,"Valor Medio P/Pedido R$"), temBase?media(anterior,"Valor Medio P/Pedido R$"):null, false],
+    ["Taxa de aprovação", (media(atual,"__aprov")===null?"—":(media(atual,"__aprov")*100).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+"%"),
+        media(atual,"__aprov"), temBase?media(anterior,"__aprov"):null, false]
+  ];
+  document.getElementById("kpis").innerHTML = kpis.map(([rot,txt,a,b,inv])=>
+    `<div class="kpi"><div class="rot">${rot}</div><div class="val">${txt}</div>${badge(a,b,inv)}</div>`).join("");
+
+  // crescimento indexado: base 100 na 1a semana com valor
+  const series=CRESC.map(m=>{
+    const vals=atual.map(o=>o[m.col]);
+    const base=vals.find(v=>v!==null&&v!==undefined&&v!==0);
+    return {x:xs, y:vals.map(v=>(v===null||v===undefined||!base)?null:(v/base)*100),
+            name:m.nome, type:"scatter", mode:"lines+markers", connectgaps:true,
+            line:{color:m.cor,width:2.2,shape:"spline",smoothing:0.4},
+            marker:{size:6,color:m.cor},
+            hovertemplate:"%{fullData.name}: %{y:,.0f}<extra></extra>"};
+  });
+  const lc=layout("Evolução indexada (primeira semana = 100)","","" );
+  lc.height=360; lc.shapes=[{type:"line",xref:"paper",x0:0,x1:1,y0:100,y1:100,
+    line:{color:TEXT2,width:1,dash:"dot"}}];
+  Plotly.newPlot("g-cresc", series, lc, CFG);
+
+  // comparativo entre periodos
+  const nota=document.getElementById("nota-comp");
+  if(temBase){
+    nota.textContent=`Soma das ${atual.length} semanas selecionadas contra as ${anterior.length} anteriores. Barras lado a lado, mesma escala relativa.`;
+    const nomes=CRESC.map(m=>m.nome);
+    const va=CRESC.map(m=>soma(atual,m.col)), vb=CRESC.map(m=>soma(anterior,m.col));
+    // normaliza cada par para % do anterior, senao Vendas (milhoes) esmaga Conversoes (centenas)
+    const pa=va.map((v,i)=> vb[i]? (v/vb[i])*100 : (v?100:0));
+    const lcomp=layout("Período atual em relação ao anterior (anterior = 100)","","%");
+    lcomp.height=320; lcomp.hovermode="closest"; lcomp.bargap=0.45;
+    lcomp.shapes=[{type:"line",xref:"paper",x0:0,x1:1,y0:100,y1:100,line:{color:TEXT2,width:1,dash:"dot"}}];
+    lcomp.xaxis={showgrid:false,linecolor:BORDER,tickfont:{color:TEXT2}};
+    Plotly.newPlot("g-comp",[{
+      x:nomes, y:pa, type:"bar",
+      marker:{color:pa.map(v=>v>=100?GREEN:RED), line:{color:"#0d1424",width:1.5}},
+      text:pa.map((v,i)=>`${v>=100?"+":""}${(v-100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%`),
+      textposition:"outside", textfont:{color:TEXT2,size:11},
+      customdata:va.map((v,i)=>[v,vb[i]]),
+      hovertemplate:"%{x}<br>atual: %{customdata[0]:,.0f}<br>anterior: %{customdata[1]:,.0f}<extra></extra>"
+    }], lcomp, CFG);
+  } else {
+    nota.textContent="Selecione 4 ou 8 semanas para comparar com o período anterior.";
+    Plotly.purge("g-comp");
+    document.getElementById("g-comp").innerHTML =
+      '<div style="padding:28px;color:#50505e;font-size:12.5px">Sem janela anterior no período inteiro.</div>';
+  }
+
+  linha("g-vendas",xs,atual.map(o=>o["Valor Total Vendas R$"]),"Vendas por semana",BLUE,"R$ ");
+  linha("g-invest",xs,atual.map(o=>o["Marketing Google R$"]),"Investimento em Google por semana",ACCENT,"R$ ");
+  linha("g-aprov", xs,atual.map(o=>o.__aprov===null?null:o.__aprov*100),"Aprovados sobre orçados",ORANGE,"","%");
+  empilhado("g-destino",xs,[
+    {nome:"Aprovados",y:atual.map(o=>o["Pedidos Aprovados"]),cor:GREEN},
+    {nome:"Não confirmados",y:atual.map(o=>o["Pedidos Não confirmados"]),cor:ORANGE},
+    {nome:"Cancelados",y:atual.map(o=>o["Pedidos Cancelados"]),cor:RED}
+  ],"Destino dos pedidos orçados");
+  empilhado("g-clientes",xs,[
+    {nome:"Clientes novos",y:atual.map(o=>o["Clientes Novos"]),cor:PURPLE},
+    {nome:"Clientes existentes",y:atual.map(o=>o["Clientes Existentes"]),cor:BLUE}
+  ],"Clientes ativos na semana");
+  linha("g-conv",xs,atual.map(o=>o["Conversões Total"]),"Conversões do Google",ACCENT);
+
+  const cols=CAB.filter(c=>c&&c!=="Semana");
+  document.getElementById("tabela").innerHTML=
+    `<table><thead><tr><th>Semana</th>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>`+
+    atual.slice().reverse().map(o=>`<tr><td>${o["Semana"]}</td>`+
+      cols.map(c=>`<td>${o[c]===null||o[c]===undefined?"—":o[c].toLocaleString("pt-BR",{maximumFractionDigits:2})}</td>`).join("")+
+      `</tr>`).join("")+`</tbody></table>`;
+
+  const ini=(atual[0]["Semana"].split("à")[0]||"").trim();
+  const fim=(atual[atual.length-1]["Semana"].split("à").pop()||"").trim();
+  document.getElementById("periodo").textContent=`${atual.length} semanas, de ${ini} a ${fim}`;
+}
+
+(async function(){
+  const estado=document.getElementById("estado");
+  try{
+    const url=`https://docs.google.com/spreadsheets/d/${PLANILHA}/export?format=csv&gid=${GID}&_=${Date.now()}`;
+    const r=await fetch(url);
+    // fetch nao rejeita em 403/404: sem checar r.ok a recusa viraria "sucesso"
+    // e o erro apareceria so como grafico vazio, sem explicacao.
+    if(!r.ok) throw new Error(`a planilha respondeu ${r.status}. Ela precisa estar compartilhada como "qualquer pessoa com o link pode ver".`);
+    const linhas=parseCSV(await r.text());
+    if(linhas.length<2) throw new Error("a planilha veio vazia.");
+    CAB=linhas[0].map(c=>c.trim());
+    DADOS=linhas.slice(1).map(l=>{
+      const o={}; CAB.forEach((c,i)=>{ o[c]= c==="Semana" ? (l[i]||"").trim() : num(l[i]); });
+      o.__inicio=inicioSemana(o["Semana"]); return o;
+    }).filter(o=>o.__inicio).sort((a,b)=>a.__inicio-b.__inicio);
+    if(!DADOS.length) throw new Error("nenhuma linha com semana reconhecida.");
+    DADOS.forEach(o=>{ o.__aprov = o["Pedidos Orçados"] ? (o["Pedidos Aprovados"]||0)/o["Pedidos Orçados"] : null; });
+
+    const opcoes=[{r:"4 semanas",v:4},{r:"8 semanas",v:8},{r:"12 semanas",v:12},{r:"Tudo",v:null}]
+      .filter(o=>o.v===null||o.v*2<=DADOS.length||o.v<=DADOS.length);
+    JANELA = (opcoes.find(o=>o.v===8)||opcoes[0]).v;
+    document.getElementById("filtros").innerHTML=opcoes.map(o=>
+      `<button class="chip${o.v===JANELA?" on":""}" data-v="${o.v===null?"":o.v}">${o.r}</button>`).join("");
+    document.getElementById("filtros").addEventListener("click",ev=>{
+      const b=ev.target.closest(".chip"); if(!b) return;
+      JANELA = b.dataset.v==="" ? null : parseInt(b.dataset.v,10);
+      document.querySelectorAll("#filtros .chip").forEach(x=>x.classList.toggle("on",x===b));
+      desenhar();
+    });
+
+    estado.hidden=true;
+    document.getElementById("painel").hidden=false;
+    desenhar();
+    document.getElementById("atualizado").textContent=
+      "Atualizado em "+new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
+  }catch(e){
+    estado.innerHTML=`<span class="erro">Não consegui ler a planilha: ${e.message}</span>`;
+  }
+})();
+</script>
+</body>
+</html>
